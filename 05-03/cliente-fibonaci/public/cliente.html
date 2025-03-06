@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket - Fibonacci</title>
+</head>
+<body>
+    <h2>WebSocket - Cálculo de Fibonacci</h2>
+    <h3>Escriba fin para terminar</h3>
+    <input type="text" id="numero" placeholder="Ingresa un número..." />
+    <button onclick="enviarNumero()">Enviar</button>
+    <button onclick="cerrarConexion()">Terminar</button>
+    <p id="respuesta"></p>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8080');
+
+        socket.onopen = function () {
+            console.log(" Conectado al servidor.");
+        };
+
+        socket.onmessage = function (event) {
+            document.getElementById("respuesta").innerText = event.data;
+        };
+
+        function enviarNumero() {
+            let numero = document.getElementById("numero").value;
+            socket.send(numero);
+        }
+
+        function cerrarConexion() {
+            socket.send("fin");
+        }
+
+        socket.onclose = function () {
+            console.log(" Conexión cerrada.");
+        };
+    </script>
+</body>
+</html>

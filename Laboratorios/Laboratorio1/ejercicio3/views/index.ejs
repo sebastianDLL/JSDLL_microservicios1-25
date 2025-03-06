@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ejercicio 3</title>
+</head>
+<body>
+    <h1>Crud</h1>
+    <a href="/add">Agregar + </a>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Nombres</th>
+            <th>Apellidos</th>
+            <th>Dirección</th>
+            <th>Teléfono</th>
+            <th>Acciones</th>
+        </tr>
+        <% contactos.forEach(contacto => { %>
+        <tr>
+            <td><%= contacto.id %></td>
+            <td><%= contacto.nombres %></td>
+            <td><%= contacto.apellidos %></td>
+            <td><%= contacto.direccion %></td>
+            <td><%= contacto.telefono %></td>
+            <td>
+                <a href="/edit/<%= contacto.id %>">Editar</a>
+                <a href="/delete/<%= contacto.id %>">Eliminar</a>
+            </td>
+        </tr>
+        <% }) %>
+    </table>
+
+    <style>
+        table {
+            margin: 20px 0;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        a {
+            text-decoration: none;
+            padding: 5px 10px;
+            background-color: #ff6666;
+            color: #fff;
+            border-radius: 3px;
+        }
+        a:hover {
+            background-color: #cc0000;
+            color: #fff;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Agregar</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Agregar</h1>
+        <form action="/add" method="POST">
+            <label>Nombres:</label>
+            <input type="text" name="nombres" required><br>
+            <label>Apellidos:</label>
+            <input type="text" name="apellidos" required><br>
+            <label>Dirección:</label>
+            <input type="text" name="direccion"><br>
+            <label>Teléfono:</label>
+            <input type="number" name="telefono"><br>
+            <button type="submit">Guardar</button>
+        </form>
+        <a href="/">Volver</a>
+    </div>
+
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form {
+            margin: 20px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 5px 10px;
+            background-color: #ff4d4d;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #cc0000;
+            color: #fff;
+        }
+
+        a {
+            text-decoration: none;
+            padding: 5px 10px;
+            background-color: #ff9999;
+            color: #333;
+            border-radius: 3px;
+        }
+
+        a:hover {
+            background-color: #cc0000;
+            color: #fff;
+        }
+    </style>
+</body>
+</html>

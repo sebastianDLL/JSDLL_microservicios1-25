@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/styles.css">
+    <title>Ejercicio 2</title>
+</head>
+<body>
+    <h2>Generador de Tablas con Operaciones</h2>
+    <form action="/generate" method="POST">
+        <label>Número:</label>
+        <input type="number" name="numero" required><br>
+
+        <label>Inicio:</label>
+        <input type="number" name="inicio" required><br>
+
+        <label>Fin:</label>
+        <input type="number" name="fin" required><br>
+
+        <label>Operación:</label>
+        <select name="operation">
+            <option value="sum">Suma</option>
+            <option value="subtract">Resta</option>
+            <option value="multiply">Multiplicación</option>
+            <option value="divide">División</option>
+        </select><br>
+
+        <button type="submit">Generar Tabla</button>
+    </form>
+</body>
+</html>
