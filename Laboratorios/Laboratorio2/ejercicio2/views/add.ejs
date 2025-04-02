@@ -1,0 +1,7 @@
+<% include('layout', { body: null }) %>
+<h2>Agregar Usuario</h2>
+<form action="/add" method="POST">
+  <label>Nombre: <input type="text" name="nombre" required></label>
+  <label>Correo Electronico: <input type="text" name="correo_electronico" required></label>
+  <button type="submit">Guardar</button>
+</form>

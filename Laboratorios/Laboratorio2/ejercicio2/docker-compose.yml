@@ -1,0 +1,36 @@
+services:
+  # Servicio para la base de datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: usersdb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: adminpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Servicio para la aplicación Node.js
+  app:
+    build: .
+    container_name: node-app
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      DB_HOST: mysql
+      DB_USER: admin
+      DB_PASSWORD: adminpass
+      DB_NAME: usersdb
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    command: ["node", "app.js"]
+
+volumes:
+  mysql_data:
