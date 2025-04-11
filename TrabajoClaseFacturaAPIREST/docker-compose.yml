@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_USER: postgres
+      POSTGRES_DB: microservices
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  productos-service:
+    build: 
+      context: ./productos-service
+      dockerfile: Dockerfile
+    container_name: productos-service
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=mysecretpassword
+      - DB_DATABASE=microservices
+      - PORT=3001
+    depends_on:
+      - postgres
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  clientes-service:
+    build: 
+      context: ./clientes-service
+      dockerfile: Dockerfile
+    container_name: clientes-service
+    ports:
+      - "3002:3002"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=mysecretpassword
+      - DB_DATABASE=microservices
+      - PORT=3002
+    depends_on:
+      - postgres
+    networks:
+      - microservices-network
+    restart: on-failure
+
+  facturas-service:
+    build: 
+      context: ./facturas-service
+      dockerfile: Dockerfile
+    container_name: facturas-service
+    ports:
+      - "3003:3003"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=mysecretpassword
+      - DB_DATABASE=microservices
+      - PORT=3003
+      - PRODUCTOS_SERVICE_URL=http://productos-service:3001
+      - CLIENTES_SERVICE_URL=http://clientes-service:3002
+    depends_on:
+      - postgres
+      - productos-service
+      - clientes-service
+    networks:
+      - microservices-network
+    restart: on-failure
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
