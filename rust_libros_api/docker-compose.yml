@@ -1,0 +1,41 @@
+services:
+  # Servicio para la API de Rust
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rust_api
+    depends_on:
+      - mongodb
+    ports:
+      - "8080:8080"
+    environment:
+      # Configuración para conectarse a MongoDB dentro de Docker
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=biblioteca
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - RUST_LOG=info
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Servicio de MongoDB
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    driver: local

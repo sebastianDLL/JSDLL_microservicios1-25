@@ -1,0 +1,12 @@
+# Carpetas que no necesitamos en la imagen Docker
+/target
+.git
+.gitignore
+
+# Archivos de configuración local que no deben copiarse
+.env.local
+.env.development
+
+# Otros archivos y carpetas que típicamente se ignoran
+**/*.rs.bk
+*.pdb
