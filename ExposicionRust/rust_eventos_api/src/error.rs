@@ -26,8 +26,11 @@ pub enum AppError {
     #[error("Compra ya pagada")]
     AlreadyPaid,
 
-    #[error("Error interno del servidor")]
-    InternalError,
+    #[error("Error interno del servidor: {0}")]
+    InternalError(String),
+
+    #[error("Error de autenticación: {0}")]
+    Unauthorized(String),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -51,7 +54,8 @@ impl ResponseError for AppError {
             AppError::InvalidIDError(_) => StatusCode::BAD_REQUEST,
             AppError::NotEnoughTickets => StatusCode::BAD_REQUEST,
             AppError::AlreadyPaid => StatusCode::BAD_REQUEST,
-            AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

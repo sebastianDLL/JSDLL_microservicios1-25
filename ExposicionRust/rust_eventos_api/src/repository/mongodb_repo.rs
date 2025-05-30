@@ -3,7 +3,6 @@ use crate::{
     model::{Event, Purchase, CreatePurchaseDto, UpdatePurchaseDto},
 };
 use futures::stream::TryStreamExt;
-use std::env;
 use mongodb::{
     bson::{doc, oid::ObjectId, Document},
     Database,
@@ -33,9 +32,9 @@ impl MongoRepo {
         Ok(events)
     }
 
-    pub async fn get_event(&self, id: ObjectId) -> Result<Event, AppError> {
+    pub async fn get_event(&self, id: i32) -> Result<Event, AppError> {
         let collection = self.db.collection::<Event>(EVENTS_COLLECTION);
-        let filter = doc! {"_id": id};
+        let filter = doc! {"id": id};
         let event = collection
             .find_one(filter, None)
             .await?
@@ -43,35 +42,8 @@ impl MongoRepo {
         Ok(event)
     }
 
-    // Obtener un evento por ID desde un endpoint externo
-    // pub async fn get_event(&self, id: ObjectId) -> Result<Event, AppError> {
-
-    //     // Supón que la URL base está en una variable de entorno
-    //     let base_url = env::var("EVENTS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
-    //     let url = format!("{}/events/{}", base_url, id);
-
-    //     let client = Client::new();
-    //     let resp = client
-    //         .get(&url)
-    //         .send()
-    //         .await
-    //         .map_err(|_| AppError::InternalError)?;
-
-    //     if resp.status().is_success() {
-    //         let event = resp
-    //             .json::<Event>()
-    //             .await
-    //             .map_err(|_| AppError::InternalError)?;
-    //         Ok(event)
-    //     } else if resp.status().as_u16() == 404 {
-    //         Err(AppError::NotFoundError)
-    //     } else {
-    //         Err(AppError::InternalError)
-    //     }
-    // }
-
-    // Obtener todas las compras de un usuario
-    pub async fn get_purchases_by_user(&self, usuario_id: ObjectId) -> Result<Vec<Purchase>, AppError> {
+    // Obtener todas las compras de un usuario (ahora usuario_id es String)
+    pub async fn get_purchases_by_user(&self, usuario_id: String) -> Result<Vec<Purchase>, AppError> {
         let collection = self.db.collection::<Purchase>(PURCHASES_COLLECTION);
         let filter = doc! {"usuario_id": usuario_id};
         let mut cursor = collection.find(filter, None).await?;
@@ -82,32 +54,23 @@ impl MongoRepo {
         Ok(purchases)
     }
 
-    // Crear una compra
-    pub async fn create_purchase(&self, usuario_id: ObjectId, dto: CreatePurchaseDto) -> Result<Purchase, AppError> {
+    // Crear una compra (ahora usuario_id es String)
+    pub async fn create_purchase(&self, usuario_id: String, dto: CreatePurchaseDto) -> Result<Purchase, AppError> {
         // 1. Verificar que el evento existe y tiene suficientes entradas
-        let event = self.get_event(dto.evento_id).await?;
+        let evento_id = dto.evento_id;
+        let event = self.get_event(evento_id).await?;
         
-        if event.entradas_disponibles < dto.cantidad {
+        if event.capacidad < dto.cantidad {
             return Err(AppError::NotEnoughTickets);
         }
-
-        // 2. Actualizar la cantidad de entradas disponibles
-        let events_collection = self.db.collection::<Event>(EVENTS_COLLECTION);
-        let filter = doc! {"_id": event.id.unwrap()};
-        let update = doc! {
-            "$inc": {
-                "entradas_disponibles": -dto.cantidad
-            }
-        };
-        events_collection.update_one(filter, update, None).await?;
-
+        
         // 3. Crear la compra
         let collection = self.db.collection::<Purchase>(PURCHASES_COLLECTION);
 
         let purchase = Purchase {
             id: None,
-            usuario_id,
-            evento_id: dto.evento_id,
+            usuario_id, // Ahora es String directamente
+            evento_id,
             cantidad: dto.cantidad,
             pagado: false,
             fecha_compra: chrono::Utc::now().to_rfc3339(),
@@ -117,7 +80,7 @@ impl MongoRepo {
         let id = insert_result
             .inserted_id
             .as_object_id()
-            .ok_or(AppError::InternalError)?;
+            .ok_or(AppError::InternalError("Error al obtener ID de la compra creada".to_string()))?;
 
         self.get_purchase(id).await
     }
@@ -183,7 +146,7 @@ impl MongoRepo {
         let filter = doc! {"_id": purchase.evento_id};
         let update = doc! {
             "$inc": {
-                "entradas_disponibles": purchase.cantidad
+                "capacidad": purchase.cantidad
             }
         };
         events_collection.update_one(filter, update, None).await?;

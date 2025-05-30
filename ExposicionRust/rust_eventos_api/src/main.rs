@@ -4,38 +4,57 @@ mod model;
 mod repository;
 
 use actix_cors::Cors;
-use actix_web::{middleware::Logger, web, App, HttpServer, dev::ServiceRequest, Error, HttpMessage};
-use actix_web_httpauth::extractors::bearer::{BearerAuth, Config};
+use actix_web::{
+    middleware::Logger, 
+    web, 
+    App, 
+    HttpServer, 
+    dev::ServiceRequest, 
+    Error, 
+    HttpMessage
+};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use actix_web_httpauth::middleware::HttpAuthentication;
-use api::compra_api::{
-    get_all_events, create_purchase, get_user_purchases, pay_purchase, delete_purchase,
+use api::habitaciones_api::{
+    get_all_events, create_purchase, get_user_purchases, pay_purchase, delete_purchase, Claims
 };
 use dotenv::dotenv;
-use mongodb::{options::ClientOptions, Client, bson::oid::ObjectId};
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use mongodb::{options::ClientOptions, Client};
 use repository::mongodb_repo::MongoRepo;
 use std::env;
 
-// Función de validación simple para el middleware de autenticación
-async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, (Error, ServiceRequest)> {
-    // En un sistema real, aquí verificarías el token JWT o similar
-    // Para este ejemplo, simplemente extraemos un ID de usuario del token
-    // En producción, usarías un sistema de autenticación adecuado
-
-    // Simulamos obtener el ID del usuario a partir del token
-    // En un sistema real, decodificarías el JWT
+// Función de validación JWT para el middleware de autenticación
+async fn jwt_validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     let token = credentials.token();
+    println!("Tocken (secret): {}", token);
+    let jwt_secret = env::var("LlaveJWT").expect("LlaveJWT no está establecida en .env");
+    println!("LlaveJWT (secret): {}", jwt_secret);
 
-    // Por simplicidad, usamos el token como si fuera un ID de MongoDB válido
-    // En un sistema real, el token contendría información del usuario
-    match ObjectId::parse_str(token) {
-        Ok(user_id) => {
-            // Añadimos el ID del usuario a los datos de la solicitud
+    
+    // Configuración para validar el JWT
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.validate_exp = true;
+    
+    match decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(jwt_secret.as_ref()),
+        &validation,
+    ) {
+        Ok(token_data) => {
+            let claims = token_data.claims;
+            
+            // Extraer el usuario_id del sub (ahora es String)
+            let user_id = claims.sub.clone();
+            
+            // Añadir tanto el String como los Claims completos a las extensiones
             req.extensions_mut().insert(user_id);
+            req.extensions_mut().insert(claims);
             Ok(req)
         },
-        Err(_) => {
-            // Token inválido
-            Err((actix_web::error::ErrorUnauthorized("Token inválido").into(), req))
+        Err(err) => {
+            log::error!("Error al validar JWT: {:?}", err);
+            Err((actix_web::error::ErrorUnauthorized("Token JWT inválido").into(), req))
         }
     }
 }
@@ -45,8 +64,10 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
+    // Validar que las variables de entorno necesarias estén presentes
     let mongo_uri = env::var("MONGO_URI").expect("MONGO_URI no está establecida en .env");
     let mongo_db_name = env::var("MONGO_DB_NAME").expect("MONGO_DB_NAME no está establecida en .env");
+    let _jwt_secret = env::var("LlaveJWT").expect("LlaveJWT no está establecida en .env");
 
     let client_options = ClientOptions::parse(&mongo_uri)
         .await
@@ -59,7 +80,7 @@ async fn main() -> std::io::Result<()> {
 
     let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let server_port = env::var("SERVER_PORT")
-        .unwrap_or_else(|_| "8082".to_string())
+        .unwrap_or_else(|_| "8081".to_string())
         .parse::<u16>()
         .expect("SERVER_PORT debe ser un número");
 
@@ -71,8 +92,8 @@ async fn main() -> std::io::Result<()> {
             .allow_any_method()
             .allow_any_header();
 
-        // Configuración de autenticación Bearer
-        let auth = HttpAuthentication::bearer(validator);
+        // Configuración de autenticación Bearer con JWT
+        let auth = HttpAuthentication::bearer(jwt_validator);
 
         App::new()
             .wrap(cors)
@@ -80,7 +101,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(mongo_data.clone())
             .service(
                 web::scope("/api")
+                    // Endpoint público para obtener eventos
                     .service(get_all_events)
+                    // Endpoints protegidos que requieren autenticación
                     .service(
                         web::scope("")
                             .wrap(auth)
