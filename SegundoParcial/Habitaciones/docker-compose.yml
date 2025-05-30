@@ -1,0 +1,51 @@
+services:
+  # MongoDB - usando tu imagen existente
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: eventos_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_URI: mongodb://admin:password123@mongodb:27017/eventos_db
+      MONGO_DB_NAME: eventos_db
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8081
+      RUST_LOG: info
+      LlaveJWT: clave_secreta123
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - app-network
+
+  # Tu aplicación Rust
+  rust-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sebastiandll/rust_eventos_app:v6.0
+    container_name: rust_eventos_app
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/eventos_db
+      MONGO_DB_NAME: eventos_db
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8081
+      RUST_LOG: info
+      LlaveJWT: clave_secreta123
+    depends_on:
+      mongodb:
+        condition: service_started
+    networks:
+      - app-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
