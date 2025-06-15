@@ -1,2 +1,2 @@
 
-pub mod habitaciones_api;
+pub mod compra_api;

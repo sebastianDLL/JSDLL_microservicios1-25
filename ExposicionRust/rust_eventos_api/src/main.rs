@@ -15,7 +15,7 @@ use actix_web::{
 };
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use actix_web_httpauth::middleware::HttpAuthentication;
-use api::habitaciones_api::{
+use api::compra_api::{
     get_all_events, create_purchase, get_user_purchases, pay_purchase, delete_purchase, Claims
 };
 use dotenv::dotenv;

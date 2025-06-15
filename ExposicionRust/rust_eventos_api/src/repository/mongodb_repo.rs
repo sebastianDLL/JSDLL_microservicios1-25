@@ -32,16 +32,6 @@ impl MongoRepo {
         Ok(events)
     }
 
-    pub async fn get_event(&self, id: i32) -> Result<Event, AppError> {
-        let collection = self.db.collection::<Event>(EVENTS_COLLECTION);
-        let filter = doc! {"id": id};
-        let event = collection
-            .find_one(filter, None)
-            .await?
-            .ok_or(AppError::NotFoundError)?;
-        Ok(event)
-    }
-
     // Obtener todas las compras de un usuario (ahora usuario_id es String)
     pub async fn get_purchases_by_user(&self, usuario_id: String) -> Result<Vec<Purchase>, AppError> {
         let collection = self.db.collection::<Purchase>(PURCHASES_COLLECTION);
@@ -56,21 +46,14 @@ impl MongoRepo {
 
     // Crear una compra (ahora usuario_id es String)
     pub async fn create_purchase(&self, usuario_id: String, dto: CreatePurchaseDto) -> Result<Purchase, AppError> {
-        // 1. Verificar que el evento existe y tiene suficientes entradas
-        let evento_id = dto.evento_id;
-        let event = self.get_event(evento_id).await?;
-        
-        if event.capacidad < dto.cantidad {
-            return Err(AppError::NotEnoughTickets);
-        }
-        
-        // 3. Crear la compra
+        // Ya no se valida la existencia del evento ni la capacidad, solo se registra el evento_id recibido
+
         let collection = self.db.collection::<Purchase>(PURCHASES_COLLECTION);
 
         let purchase = Purchase {
             id: None,
-            usuario_id, // Ahora es String directamente
-            evento_id,
+            usuario_id,
+            evento_id: dto.evento_id,
             cantidad: dto.cantidad,
             pagado: false,
             fecha_compra: chrono::Utc::now().to_rfc3339(),

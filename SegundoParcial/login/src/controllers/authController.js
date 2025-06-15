@@ -72,12 +72,23 @@ const loginUser = async (req, res) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not defined in environment variables');
+      return res.status(500).json({
+        success: false,
+        message: 'Error de configuración del servidor (JWT_SECRET no definido)',
+      });
+    }
+
+    // Duración del token en segundos (por ejemplo, 7 días)
+    const tokenDuration = 7 * 24 * 60 * 60; // 7 días
+
     const token = jwt.sign(
       {
-        email: user.email,
-        sub: user.id,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 horas
+      email: user.email,
+      sub: user.id,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + tokenDuration,
       },
       process.env.JWT_SECRET
     );

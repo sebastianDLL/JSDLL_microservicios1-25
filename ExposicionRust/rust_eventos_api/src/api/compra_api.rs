@@ -97,13 +97,12 @@ pub async fn pay_purchase(
     // 5. Enviar mensaje a RabbitMQ
     if let Err(e) = send_notification_to_rabbitmq(&updated_purchase, usuario_id, correo, nombre).await {
         log::error!("Error al enviar notificación a RabbitMQ: {:?}", e);
-        // No devolvemos error porque el pago se procesó correctamente
-        // Solo logueamos el error de notificación
     }
 
     Ok(HttpResponse::Ok().json(updated_purchase))
 }
 
+// Función auxiliar para enviar notificación a RabbitMQ
 // Función auxiliar para enviar notificación a RabbitMQ
 async fn send_notification_to_rabbitmq(
     purchase: &crate::model::Purchase,
@@ -120,21 +119,34 @@ async fn send_notification_to_rabbitmq(
     };
 
     // Obtener configuración de RabbitMQ desde variables de entorno
-    let rabbitmq_host = env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
-    let rabbitmq_port = env::var("RABBITMQ_PORT").unwrap_or_else(|_| "5672".to_string());
-    let rabbitmq_user = env::var("RABBITMQ_USER").unwrap_or_else(|_| "guest".to_string());
-    let rabbitmq_pass = env::var("RABBITMQ_PASS").unwrap_or_else(|_| "guest".to_string());
-    let queue_name = env::var("RABBITMQ_QUEUE").unwrap_or_else(|_| "notifications_queue".to_string());
+    // Usar localhost como fallback para desarrollo local
+    let rabbitmq_host = env::var("RABBITMQ_HOST")
+        .unwrap_or_else(|_| "localhost".to_string());  // Cambiar fallback
+    let rabbitmq_port = env::var("RABBITMQ_PORT")
+        .unwrap_or_else(|_| "5672".to_string());
+    let rabbitmq_user = env::var("RABBITMQ_USER")
+        .unwrap_or_else(|_| "guest".to_string());
+    let rabbitmq_pass = env::var("RABBITMQ_PASS")
+        .unwrap_or_else(|_| "guest".to_string());
+    let queue_name = env::var("RABBITMQ_QUEUE")
+        .unwrap_or_else(|_| "notifications_queue".to_string());
     
     let rabbitmq_url = format!(
         "amqp://{}:{}@{}:{}/%2f",
         rabbitmq_user, rabbitmq_pass, rabbitmq_host, rabbitmq_port
     );
 
+    log::info!("Intentando conectar a RabbitMQ en: {}:{}", rabbitmq_host, rabbitmq_port);
+    log::info!("URL de conexión: {}", rabbitmq_url);
+
     let connection = Connection::connect(&rabbitmq_url, ConnectionProperties::default())
         .await
         .map_err(|e| {
-            log::error!("Error al conectar con RabbitMQ: {:?}", e);
+            log::error!("Error al conectar con RabbitMQ en {}:{}: {:?}", rabbitmq_host, rabbitmq_port, e);
+            log::error!("Posibles causas:");
+            log::error!("1. RabbitMQ no está ejecutándose");
+            log::error!("2. Puerto {} no está disponible", rabbitmq_port);
+            log::error!("3. Firewall bloqueando la conexión");
             AppError::InternalError("Error al conectar con RabbitMQ".into())
         })?;
 
@@ -143,15 +155,21 @@ async fn send_notification_to_rabbitmq(
         AppError::InternalError("Error al crear el canal RabbitMQ".into())
     })?;
 
+    // Configurar la cola como durable
+    let queue_options = QueueDeclareOptions {
+        durable: true,
+        ..Default::default()
+    };
+
     channel
         .queue_declare(
             &queue_name,
-            QueueDeclareOptions::default(),
+            queue_options,
             FieldTable::default(),
         )
         .await
         .map_err(|e| {
-            log::error!("Error al declarar la cola: {:?}", e);
+            log::error!("Error al declarar la cola '{}': {:?}", queue_name, e);
             AppError::InternalError("Error al declarar la cola".into())
         })?;
 
@@ -191,7 +209,7 @@ async fn send_notification_to_rabbitmq(
             AppError::InternalError("Publicación no confirmada".into())
         })?;
 
-    log::info!("Notificación enviada a RabbitMQ para compra: {}", compra_id);
+    log::info!("Notificación enviada exitosamente a RabbitMQ para compra: {}", compra_id);
     Ok(())
 }
 

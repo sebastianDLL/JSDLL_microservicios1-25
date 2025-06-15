@@ -1,0 +1,38 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+    ports:
+      - "5672:5672"    # Puerto AMQP
+      - "15672:15672"  # Puerto Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  notification-service:
+    build: .
+    container_name: notification-service
+    environment:
+      - RABBITMQ_URL=amqp://admin:password123@rabbitmq:5672/
+      - EMAIL_USER=notifications@hospital.com
+      - EMAIL_PASSWORD=mock_password
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+    ports:
+      - "8081:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./app:/app/app
+
+volumes:
+  rabbitmq_data:

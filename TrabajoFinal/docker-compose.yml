@@ -1,0 +1,147 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+    # Montaje del archivo de configuración de Nginx que se encuentra en la raiz del proyecto
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - auth-service
+      - notification-service
+      - medical-schedules-service
+      # - reserva-citas
+    networks:
+      - backend
+
+  # Incluye aquí los servicios existentes, usando los nombres de los servicios definidos en sus respectivos docker-compose:
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_USER=admin
+      - DB_PASSWORD=miclave123
+      - DB_NAME=auth_service
+      - DB_HOST=db
+      - DB_PORT=3306
+      - PORT=3000
+      - JWT_SECRET=jwt_secret_key
+      - NODE_ENV=production
+    env_file:
+      - ./auth-service/.env
+    depends_on:
+      - db
+    command: ["sh", "wait-for-db.sh", "npm", "start"]
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+    ports:
+      - "5672:5672"    # Puerto AMQP
+      - "15672:15672"  # Puerto Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - backend
+
+  notification-service:
+    build:
+      context: ./notifcacion/notification-service
+    environment:
+      - RABBITMQ_URL=amqp://admin:password123@rabbitmq:5672/
+      - EMAIL_USER=notifications@hospital.com
+      - EMAIL_PASSWORD=mock_password
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+    ports:
+      - "8081:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+
+  medical-schedules-service:
+    build:
+      context: ./especialidades-agenda-service
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongo:27017/medical_schedules
+      - JWT_SECRET=jwt_secret_key
+      - NODE_ENV=development
+    depends_on:
+      - mongo
+    networks:
+      - backend
+
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_DATABASE: auth_service
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: miclave123
+      MYSQL_ROOT_PASSWORD: miclave123
+    networks:
+      - backend
+    volumes:
+      - ./auth-service/init:/docker-entrypoint-initdb.d
+
+  # db-reserva-citas:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: reservas
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   ports:
+  #     - "5434:5432"
+  #   volumes:
+  #     - ./reserva-citas-db-data:/var/lib/postgresql/data
+
+  # reserva-citas:
+  #   build:
+  #     context: ./reserva-citas
+  #   container_name: reserva-citas 
+  #   depends_on:
+  #     - db-reserva-citas
+  #     - medical-schedules-service
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:postgres@db-reserva-citas:5432/reservas
+  #   ports:
+  #     - "8002:8002"
+  #   networks:
+  #     - backend
+
+  mongo:
+    image: mongo:6.0
+    networks:
+      - backend
+
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #   container_name: frontend-app
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - nginx
+  #   networks:
+  #     - backend
+
+
+networks:
+  backend:
+    driver: bridge

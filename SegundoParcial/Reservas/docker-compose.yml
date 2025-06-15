@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  reserva-service:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/reservas
+      - JWT_SECRET=clave_secreta123
+    depends_on:
+      - db
+    networks:
+      - reserva-network
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reservas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - reserva-network
+
+volumes:
+  postgres_data:
+
+networks:
+  reserva-network:
+    driver: bridge

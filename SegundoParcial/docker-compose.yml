@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # SERVICIO DE LOGIN + PostgreSQL
+  # ===========================================
+  login_db:
+    image: postgres:15-alpine
+    container_name: bd_usuarios2
+    environment:
+      POSTGRES_DB: db_usuarios
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: lilianjc123
+    ports:
+      - "5433:5432"
+    volumes:
+      - login_postgres_data:/var/lib/postgresql/data
+    networks:
+      - hotel_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  login_service:
+    build:
+      context: ./login
+      dockerfile: Dockerfile
+    container_name: auth_service2
+    environment:
+      - NODE_ENV=production
+      - DB_USER=postgres
+      - DB_HOST=login_db
+      - DB_NAME=db_usuarios
+      - DB_PASSWORD=lilianjc123
+      - DB_PORT=5432
+      - PORT=3000
+      - JWT_SECRET=clave_secreta123
+    depends_on:
+      login_db:
+        condition: service_healthy
+    networks:
+      - hotel_network
+    restart: unless-stopped
+    expose:
+      - "3000"
+
+  # ===========================================
+  # SERVICIO DE HABITACIONES + MongoDB
+  # ===========================================
+  habitaciones_db:
+    image: mongo:7.0-jammy
+    container_name: habitaciones_mongodb2
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: habitaciones_db
+    volumes:
+      - habitaciones_mongodb_data:/data/db
+      - ./habitaciones/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - hotel_network
+
+  habitaciones_service:
+    build:
+      context: ./habitaciones
+      dockerfile: Dockerfile
+    container_name: rust_habitaciones_app2
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://admin:password123@habitaciones_db:27017/habitaciones_db
+      MONGO_DB_NAME: habitaciones_db
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8081
+      RUST_LOG: info
+      LlaveJWT: clave_secreta123
+    depends_on:
+      - habitaciones_db
+    networks:
+      - hotel_network
+    expose:
+      - "8081"
+
+  # ===========================================
+  # SERVICIO DE RESERVAS + PostgreSQL
+  # ===========================================
+  reservas_db:
+    image: postgres:13
+    container_name: reservas_postgres2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reservas
+    volumes:
+      - reservas_postgres_data:/var/lib/postgresql/data
+      - ./reservas/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+    networks:
+      - hotel_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reservas_service:
+    build:
+      context: ./reservas
+      dockerfile: Dockerfile
+    container_name: reservas_service2
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@reservas_db:5432/reservas
+      - JWT_SECRET=clave_secreta123
+    depends_on:
+      reservas_db:
+        condition: service_healthy
+    networks:
+      - hotel_network
+    restart: unless-stopped
+    expose:
+      - "4000"
+
+  # ===========================================
+  # NGINX PROXY REVERSO
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: hotel_nginx_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - login_service
+      - habitaciones_service
+      - reservas_service
+    networks:
+      - hotel_network
+    restart: unless-stopped
+
+# ===========================================
+# VOLÚMENES PERSISTENTES
+# ===========================================
+volumes:
+  login_postgres_data:
+    driver: local
+  habitaciones_mongodb_data:
+    driver: local
+  reservas_postgres_data:
+    driver: local
+
+# ===========================================
+# RED COMPARTIDA
+# ===========================================
+networks:
+  hotel_network:
+    driver: bridge

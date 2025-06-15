@@ -20,9 +20,6 @@ pub enum AppError {
     #[error("Recurso no encontrado")]
     NotFoundError,
 
-    #[error("No hay suficientes entradas disponibles")]
-    NotEnoughTickets,
-
     #[error("Compra ya pagada")]
     AlreadyPaid,
 
@@ -52,7 +49,6 @@ impl ResponseError for AppError {
         match self {
             AppError::NotFoundError => StatusCode::NOT_FOUND,
             AppError::InvalidIDError(_) => StatusCode::BAD_REQUEST,
-            AppError::NotEnoughTickets => StatusCode::BAD_REQUEST,
             AppError::AlreadyPaid => StatusCode::BAD_REQUEST,
             AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,

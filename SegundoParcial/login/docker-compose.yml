@@ -7,12 +7,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: lilianjc123
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Puerto externo 5433, interno 5432 (estándar de PostgreSQL)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - auth_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     build: .
@@ -21,16 +26,18 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-    env_file:
-      - .env
+      - DB_USER=postgres
+      - DB_HOST=db
+      - DB_NAME=db_usuarios
+      - DB_PASSWORD=lilianjc123
+      - DB_PORT=5432
+      - PORT=3000
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - auth_network
     restart: unless-stopped
-    volumes:
-      - .:/app
-      - /app/node_modules
 
 volumes:
   postgres_data:

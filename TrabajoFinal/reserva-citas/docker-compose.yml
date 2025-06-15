@@ -1,0 +1,31 @@
+services:
+  db-reserva-citas:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: reservas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - reserva-citas-db-data:/var/lib/postgresql/data
+
+  reserva-citas:
+    build:
+      context: ./reserva-citas
+    depends_on:
+      - db-reserva-citas
+      - especialidades-agenda-service
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db-reserva-citas:5432/reservas
+    ports:
+      - "8002:8002"
+    networks:
+      - backend
+
+volumes:
+  reserva-citas-db-data:
+
+networks:
+  backend:
+    driver: bridge

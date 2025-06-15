@@ -31,24 +31,23 @@ impl MongoRepo {
         Ok(habitaciones)
     }
 
-    // Obtener una habitacion por id
-    pub async fn get_habitacion(&self, id: i32) -> Result<Habitacion, AppError> {
-        let collection = self.db.collection::<Habitacion>(HABITACIONES_COLLECTION);
-        let filter = doc! {"id": id};
-        let habitacion = collection
-            .find_one(filter, None)
-            .await?
-            .ok_or(AppError::NotFoundError)?;
-        Ok(habitacion)
-    }
-
-    // Crear una habitacion
+    // Crear una habitacion con id autogenerado
     pub async fn create_habitacion(&self, dto: CreateHabitacionDto) -> Result<Habitacion, AppError> {
         let collection = self.db.collection::<Habitacion>(HABITACIONES_COLLECTION);
 
-        // Puedes generar el id aquí si lo deseas, o dejar que Mongo lo maneje
+        // Obtener el mayor id actual y sumarle 1
+        let pipeline = vec![
+            doc! { "$group": { "_id": null, "max_id": { "$max": "$id" } } }
+        ];
+        let mut cursor = collection.aggregate(pipeline, None).await?;
+        let next_id = if let Some(result) = cursor.try_next().await? {
+            result.get_i32("max_id").unwrap_or(0) + 1
+        } else {
+            1
+        };
+
         let habitacion = Habitacion {
-            id: dto.numero_habitacion, // O usa otro generador de id
+            id: next_id,
             numero_habitacion: dto.numero_habitacion,
             tipo_habitacion: dto.tipo_habitacion,
             precio_noche: dto.precio_noche,
@@ -60,7 +59,7 @@ impl MongoRepo {
         Ok(habitacion)
     }
 
-    // Actualizar una habitacion
+    // Actualizar una habitacion (no crea nuevo registro)
     pub async fn update_habitacion(&self, id: i32, dto: UpdateHabitacionDto) -> Result<Habitacion, AppError> {
         let collection = self.db.collection::<Habitacion>(HABITACIONES_COLLECTION);
         let filter = doc! {"id": id};
@@ -75,6 +74,7 @@ impl MongoRepo {
         let update = doc! {"$set": update_doc};
         let options = mongodb::options::FindOneAndUpdateOptions::builder()
             .return_document(mongodb::options::ReturnDocument::After)
+            .upsert(false) // No crear nuevo documento si no existe
             .build();
 
         let updated = collection

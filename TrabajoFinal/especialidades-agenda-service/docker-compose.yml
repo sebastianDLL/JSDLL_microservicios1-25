@@ -1,0 +1,32 @@
+services:
+  medical-schedules-service:
+    build: .
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongo:27017/medical_schedules
+      - JWT_SECRET=jwt_secret_key
+      - NODE_ENV=development
+    depends_on:
+      - mongo
+    volumes:
+      - ./src:/app/src
+    networks:
+      - medical-network
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - medical-network
+
+volumes:
+  mongo_data:
+
+networks:
+  medical-network:
+    driver: bridge
